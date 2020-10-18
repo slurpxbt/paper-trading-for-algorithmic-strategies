@@ -55,7 +55,7 @@ def main(client):
     # -----------------------------------------------------------------------------------------------------------------------------
     # this is done in order to get the latest EMA values
     # get hourly candle data
-    candle_data = get_emas("ETHUSDT", "1h")
+    candle_data = get_emas("ETHUSDT", "1h") #TODO: IT HAS TO BE BINANCE TICKERS
 
     last_candle_close = candle_data.iloc[-1]
     close = last_candle_close["close"]
