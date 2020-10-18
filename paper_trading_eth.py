@@ -344,7 +344,7 @@ def main(client):
 
                     print(f"NEW HOUR: close {close} --> ema21 {ema21} --> ema50 {ema50}")
 
-                    # HERE GOES YOU SIGNAL SEARCH IF IT BASED ON CANDLE CLOSES
+                    # HERE GOES YOUR SIGNAL SEARCH IF IT BASED ON CANDLE CLOSES
                     # search for signal
                     if trade_opened == False and signal == False:
                         if close > ema21 and close > ema50:
