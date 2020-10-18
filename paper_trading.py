@@ -360,11 +360,6 @@ def main(client):
 
                         print(f"SIGNAL => {signal_side}")
 
-                   
-
-            
-
-            
                 
 
         time.sleep(0.05)
