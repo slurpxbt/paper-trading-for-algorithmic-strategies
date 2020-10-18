@@ -227,7 +227,7 @@ def main(client):
                     elif signal == "short":
                         # SHORT HARD STOP
                         gain = round((price / trade_entry - 1) * 100 * (-1) - market_order_fee - slippage, 2)
-                        trade_profit = gain * pos_size / 100
+                        trade_profit = round(gain * pos_size / 100, 2)
                         print("-" * 100, trade_profit, "current close=", price, "entry", trade_entry)
 
                         if trade_profit <= hard_stop:
