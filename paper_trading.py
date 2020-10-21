@@ -224,7 +224,7 @@ def main(client):
                                 signal = False
 
                     # SHORT TRADE
-                    elif signal == "short":
+                    elif signal_side == "short":
                         # SHORT HARD STOP
                         gain = round((price / trade_entry - 1) * 100 * (-1) - market_order_fee - slippage, 2)
                         trade_profit = round(gain * pos_size / 100, 2)
