@@ -11,6 +11,12 @@ import pandas as pd
 import pickle
 from pathlib import Path
 import traceback
+import urllib
+import websockets
+import orjson
+import asyncio
+import json
+import aiohttp
 
 def setup_logger():
 
@@ -25,6 +31,24 @@ def setup_logger():
     logger.addHandler(ch)
     return logger
 
+
+# this fixes KlinveV2 problem with bybit api upgrade
+async def subscribe_klineV2():
+    async with websockets.connect('wss://stream.bytick.com/realtime') as websocket:
+        await websocket.send(json.dumps({'op': 'subscribe', 'args': ["klineV2.1.BTCUSD"]}))
+        data = False
+        while data == False:
+            kline = orjson.loads(await websocket.recv())
+            #print(kline)
+            if "data" in kline:
+                data = True
+                kline_data = kline["data"][0]
+                high = kline_data["high"]
+                low = kline_data["low"]
+                close = kline_data["close"]
+
+                #print(f"low {low}, high {high}, close {close}")
+                return high, low, close
 
 def get_emas(pair, time_frame):
     # This function prepares you ema for you strategy if you need them
@@ -48,7 +72,6 @@ def get_emas(pair, time_frame):
 def main(client):
     # Websocket subscriptions ------------ 
     client.subscribe_trade()
-    client.subscribe_kline("ETHUSD", "1h")
     # -----------------------------------
     
 
@@ -103,7 +126,6 @@ def main(client):
 
         # Data Requests --------------------
         trade_data = client.get_data("trade.ETHUSD")
-        kline = client.get_data("kline.ETHUSD.1h")
         # --------------------------------------------
         
         if trade_data:  # if data is returned 
@@ -176,6 +198,7 @@ def main(client):
                             # FORMAT = [signal_side, current_time, trade_entry], exit_price, trade_profit, gain, tmp_txt]
                             pickle.dump(trade_data, open(f"{root}/{pnl_file_path}.p", "ab"))
                             signal = False
+                            break
 
                         else:
                             # LONG TP
@@ -199,6 +222,7 @@ def main(client):
                                 # FORMAT = [signal_side, current_time, trade_entry], exit_price, trade_profit, gain, tmp_txt]
                                 pickle.dump(trade_data, open(f"{root}/{pnl_file_path}.p", "ab"))
                                 signal = False
+                                break
 
                             # LONG SL
                             elif close < ema21 and close < ema50:
@@ -222,6 +246,7 @@ def main(client):
                                 # FORMAT = [signal_side, current_time, trade_entry], exit_price, trade_profit, gain, tmp_txt]
                                 pickle.dump(trade_data, open(f"{root}/{pnl_file_path}.p", "ab"))
                                 signal = False
+                                break
 
                     # SHORT TRADE
                     elif signal_side == "short":
@@ -252,6 +277,7 @@ def main(client):
                             # FORMAT = [signal_side, current_time, trade_entry], exit_price, trade_profit, gain, tmp_txt]
                             pickle.dump(trade_data, open(f"{root}/{pnl_file_path}.p", "ab"))
                             signal = False
+                            break
 
                         else:
                             # SHORT TP
@@ -278,7 +304,7 @@ def main(client):
                                 # FORMAT = [signal_side, current_time, trade_entry], exit_price, trade_profit, gain, tmp_txt]
                                 pickle.dump(trade_data, open(f"{root}/{pnl_file_path}.p", "ab"))
                                 signal = False
-
+                                break
 
                             # SHORT SL
                             elif close > ema21 and close > ema50:
@@ -304,23 +330,16 @@ def main(client):
                                 # FORMAT = [signal_side, current_time, trade_entry], exit_price, trade_profit, gain, tmp_txt]
                                 pickle.dump(trade_data, open(f"{root}/{pnl_file_path}.p", "ab"))
                                 signal = False
+                                break
 
-                
-        if kline:
-            candle_close = kline["close"]
-            candle_high = kline["high"]
-            candle_low = kline["low"]
             
-           
-
-
         # Intervall prints
         if cur_time.second % 20 == 0 and cur_time.second != sec_  and data_received:
             
             sec_ = cur_time.second
             
             if trade_opened:
-                print(f"<{curret_date} {cur_time.strftime('%H:%M:%S')} UTC> -> price: {price} => current trade gain: {gain} % => current trade profit {trade_profit} => size {pos_size}") 
+                print(f"<{curret_date} {cur_time.strftime('%H:%M:%S')} UTC> -> price: {price} => current trade gain: {round(gain,2)} % => current trade profit {round(trade_profit,2)} => size {pos_size}") 
             else:
                 print(f"<{curret_date} {cur_time.strftime('%H:%M:%S')} UTC> -> price: {price}") 
 
@@ -331,6 +350,10 @@ def main(client):
                     print("-"*100, "NEW HOUR")
                     hour_ = current_time.hour
 
+
+                    # get kline
+                    loop = asyncio.get_event_loop()
+                    candle_high, candle_low, candle_close = loop.run_until_complete(subscribe_klineV2()) 
 
                     # THIS CALCULATES NEW EMA VALUES
                     candle_data = candle_data.append({'high':candle_high,'low':candle_low ,'close': candle_close , 'EMA21' : 0, "EMA50":0} , ignore_index=True)
